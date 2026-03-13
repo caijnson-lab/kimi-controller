@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">Kimi ❤️</string>
+    <string name="accessibility_service_description">Kimi Android Controller - Developed with love by Kimi_Red | 由 Kimi_Red 开发的远程控制和自动化工具</string>
+    <string name="service_status">服务状态</string>
+    <string name="server_status">HTTP 服务器</string>
+    <string name="accessibility_status">无障碍服务</string>
+    <string name="enable_accessibility">启用无障碍服务</string>
+    <string name="server_running">服务器运行中</string>
+    <string name="server_stopped">服务器已停止</string>
+    <string name="port">端口: 8082</string>
+</resources>
