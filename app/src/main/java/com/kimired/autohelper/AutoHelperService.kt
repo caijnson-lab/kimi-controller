@@ -2,12 +2,14 @@ package com.kimired.autohelper
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
+import android.content.Context
 import android.content.Intent
 import android.graphics.Path
 import android.graphics.Rect
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.telephony.SmsManager
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
@@ -22,6 +24,9 @@ class AutoHelperService : AccessibilityService() {
     companion object {
         const val TAG = "AutoHelperService"
         var instance: AutoHelperService? = null
+        
+        // WakeLock 用于唤醒屏幕
+        private var wakeLock: PowerManager.WakeLock? = null
     }
 
     private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -30,20 +35,27 @@ class AutoHelperService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
-        Log.i(TAG, "无障碍服务已连接")
-        Toast.makeText(this, "Kimi Controller 已启动", Toast.LENGTH_SHORT).show()
+        
+        // 初始化 WakeLock
+        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+        wakeLock = powerManager.newWakeLock(
+            PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
+            "Kimi:ScreenWake"
+        )
+        
+        Log.i(TAG, "无障碍服务已连接，WakeLock 已初始化")
+        Toast.makeText(this, "Kimi Controller 已启动 - 支持屏幕唤醒", Toast.LENGTH_SHORT).show()
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        // 处理无障碍事件
+        // 监听窗口状态变化
         when (event?.eventType) {
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
-                // 窗口状态变化
+                Log.d(TAG, "窗口状态变化")
             }
             AccessibilityEvent.TYPE_VIEW_CLICKED -> {
-                // 视图被点击
+                Log.d(TAG, "视图被点击")
             }
-            else -> {}
         }
     }
 
@@ -55,20 +67,47 @@ class AutoHelperService : AccessibilityService() {
         super.onDestroy()
         instance = null
         serviceScope.cancel()
+        releaseWakeLock()
+    }
+
+    // 唤醒屏幕
+    fun wakeScreen(duration: Long = 10000) {
+        wakeLock?.let {
+            if (!it.isHeld) {
+                Log.i(TAG, "唤醒屏幕 ${duration}ms")
+                it.acquire(duration)
+            }
+        }
+    }
+
+    // 释放 WakeLock
+    private fun releaseWakeLock() {
+        wakeLock?.let {
+            if (it.isHeld) {
+                it.release()
+                Log.d(TAG, "WakeLock 已释放")
+            }
+        }
     }
 
     // 点击坐标
     fun tap(x: Int, y: Int): Boolean {
+        // 先唤醒屏幕
+        wakeScreen()
         return performTap(x, y)
     }
 
     // 滑动
     fun swipe(x1: Int, y1: Int, x2: Int, y2: Int, duration: Int = 300): Boolean {
+        // 先唤醒屏幕
+        wakeScreen()
         return performSwipe(x1, y1, x2, y2, duration)
     }
 
     // 输入文本
     fun typeText(text: String): Boolean {
+        // 先唤醒屏幕
+        wakeScreen()
         return try {
             val nodeInfo = findFocusedNode()
             if (nodeInfo != null) {
@@ -102,6 +141,8 @@ class AutoHelperService : AccessibilityService() {
 
     // 打开应用
     fun openApp(packageName: String): Boolean {
+        // 先唤醒屏幕
+        wakeScreen()
         return try {
             val intent = packageManager.getLaunchIntentForPackage(packageName)
             if (intent != null) {
@@ -121,6 +162,8 @@ class AutoHelperService : AccessibilityService() {
 
     // 打开 URL
     fun openUrl(url: String): Boolean {
+        // 先唤醒屏幕
+        wakeScreen()
         return try {
             val intent = Intent(Intent.ACTION_VIEW)
             intent.data = android.net.Uri.parse(url)
@@ -136,31 +179,37 @@ class AutoHelperService : AccessibilityService() {
 
     // 返回
     fun goBack(): Boolean {
+        wakeScreen()
         return performGlobalAction(GLOBAL_ACTION_BACK)
     }
 
     // 主页
     fun goHome(): Boolean {
+        wakeScreen()
         return performGlobalAction(GLOBAL_ACTION_HOME)
     }
 
     // 多任务
     fun goRecent(): Boolean {
+        wakeScreen()
         return performGlobalAction(GLOBAL_ACTION_RECENTS)
     }
 
     // 通知栏
     fun openNotifications(): Boolean {
+        wakeScreen()
         return performGlobalAction(GLOBAL_ACTION_NOTIFICATIONS)
     }
 
     // 锁屏
     fun lockScreen(): Boolean {
-        return performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN)
+        releaseWakeLock()
+        return performGlobalAction(GLOBAL_ACTION_POWER_DIALOG)
     }
 
     // 截屏
     fun takeScreenshot(): Boolean {
+        wakeScreen()
         return try {
             performGlobalAction(GLOBAL_ACTION_TAKE_SCREENSHOT)
             Log.i(TAG, "截屏成功")
