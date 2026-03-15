@@ -34,12 +34,17 @@ class AutoHelperService : AccessibilityService() {
         Toast.makeText(this, "Kimi Controller 已启动", Toast.LENGTH_SHORT).show()
     }
 
-    override fun onAccessibilityEvent(event: AccessibilityNodeInfo?) {
-        // 处理无障碍事件
-    }
-
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         // 处理无障碍事件
+        when (event?.eventType) {
+            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
+                // 窗口状态变化
+            }
+            AccessibilityEvent.TYPE_VIEW_CLICKED -> {
+                // 视图被点击
+            }
+            else -> {}
+        }
     }
 
     override fun onInterrupt() {
